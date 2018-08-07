@@ -1,23 +1,35 @@
+Parameters: 
+  EnvType: 
+    Description: Option to install New Relic Infrastructure.
+    Default: apm
+    Type: String
+    AllowedValues: 
+      - apm
+      - plusInfra
+    ConstraintDescription: must specify apm or +Infra.
+
 Resources:
   Ec2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-9c9443e3  #Amazon Linux AMI in Tokyo
+      ImageId: ami-9c9443e3  #Amazon Linux AMI in Tokyo 
       KeyName: tokyocloudformation
       IamInstanceProfile: 'S3EC2'
       SecurityGroupIds:
-        - !Ref myNewSecurityGroup
+        - !Ref myNewSecurityGroup1117
       Tags:
         - Key: Name
           Value: tomcat-linux-newrelic
       UserData:
         Fn::Base64:
-          |
+          !Sub |
             #!/bin/bash
             yum update -y
+            yum install -y aws-cfn-bootstrap 
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource Ec2Instance
             yum install -y tomcat8
-            yum install -y tomcat8-webapps
+            yum install -y tomcat8-webapps tomcat8-admin-webapps
             cd /usr/share/tomcat8
             aws s3 cp s3://tomcat.newrelic.artifacts/newrelic.zip newrelic.zip
             aws s3 cp s3://tomcat.newrelic.artifacts/tomcat8.conf conf/tomcat8.conf
@@ -25,11 +37,48 @@ Resources:
             chown -R tomcat:tomcat /usr/share/tomcat8/
             service tomcat8 start
             chkconfig --level 2345 tomcat8 on
-
-  myNewSecurityGroup:
+            if [ "${EnvType}" = "plusInfra" ]; then
+            echo "license_key: ***REMOVED***" | sudo tee -a /etc/newrelic-infra.yml
+            cat /etc/os-release
+            curl -o /etc/yum.repos.d/newrelic-infra.repo https://download.newrelic.com/infrastructure_agent/linux/yum/el/6/x86_64/newrelic-infra.repo
+            yum -q makecache -y --disablerepo='*' --enablerepo='newrelic-infra'
+            yum install newrelic-infra -y
+            fi
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+           files:
+             '/etc/cfn/cfn-hup.conf':
+               content: !Sub |
+                 [main]
+                 stack=${AWS::StackId}
+                 region=${AWS::Region}
+                 interval=1
+               mode: '000400'
+               owner: root
+               group: root
+             '/etc/cfn/hooks.d/cfn-auto-reloader.conf':
+               content: !Sub |
+                 [cfn-auto-reloader-hook]
+                 triggers=post.update
+                 path=Resources.Ec2Instance.Metadata.AWS::CloudFormation::Init
+                 action=/opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --region=${AWS::Region} --resource=EcsInstanceLaunchConfiguration --configsets UpdateEnvironment
+                 runas=root
+               mode: '000400'
+               owner: root
+               group: root
+           services:
+             sysvinit:
+               cfn-hup:
+                 enabled: true
+                 ensureRunning: true
+                 files:
+                 - '/etc/cfn/cfn-hup.conf'
+                 - '/etc/cfn/hooks.d/cfn-auto-reloader.conf'
+  myNewSecurityGroup1117:
       Type: AWS::EC2::SecurityGroup
       Properties:
-        GroupName: tokyoSecurity
+        GroupName: tokyoSecurity1117
         GroupDescription: Enable Appropriate ports for tomcat-http and ssh
         VpcId: vpc-2fbc4d4a
 
