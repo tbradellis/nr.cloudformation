@@ -17,7 +17,7 @@ Resources:
       KeyName: tokyocloudformation
       IamInstanceProfile: 'S3EC2'
       SecurityGroupIds:
-        - !Ref myNewSecurityGroup1117
+        - !Ref myNewSecurityGroup1118
       Tags:
         - Key: Name
           Value: tomcat-linux-newrelic
