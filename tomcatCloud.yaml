@@ -13,8 +13,8 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-9c9443e3  #Amazon Linux AMI in Tokyo 
-      KeyName: tokyocloudformation
+      ImageId: ami-0e86606d #Amazon Linux AMI in N. California 
+      KeyName: cloudformation
       IamInstanceProfile: 'S3EC2'
       SecurityGroupIds:
         - !Ref myNewSecurityGroup1118
