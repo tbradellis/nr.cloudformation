@@ -27,16 +27,6 @@ Resources:
             #!/bin/bash
             yum update -y
             yum install -y aws-cfn-bootstrap 
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource Ec2Instance
-            yum install -y tomcat8
-            yum install -y tomcat8-webapps tomcat8-admin-webapps
-            cd /usr/share/tomcat8
-            aws s3 cp s3://tomcat.newrelic.artifacts/newrelic.zip newrelic.zip
-            aws s3 cp s3://tomcat.newrelic.artifacts/tomcat8.conf conf/tomcat8.conf
-            unzip newrelic.zip
-            chown -R tomcat:tomcat /usr/share/tomcat8/
-            service tomcat8 start
-            chkconfig --level 2345 tomcat8 on
             if [ "${EnvType}" = "plusInfra" ]; then
             echo "license_key: 72b4cac51de99980b0c7a5f579f79348a23866c6" | sudo tee -a /etc/newrelic-infra.yml
             cat /etc/os-release
@@ -46,41 +36,61 @@ Resources:
             fi
     Metadata:
       AWS::CloudFormation::Init:
-        config:
-           files:
-             '/etc/cfn/cfn-hup.conf':
-               content: !Sub |
-                 [main]
-                 stack=${AWS::StackId}
-                 region=${AWS::Region}
-                 interval=1
-               mode: '000400'
-               owner: root
-               group: root
-             '/etc/cfn/hooks.d/cfn-auto-reloader.conf':
-               content: !Sub |
-                 [cfn-auto-reloader-hook]
-                 triggers=post.update
-                 path=Resources.Ec2Instance.Metadata.AWS::CloudFormation::Init
-                 action=/opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --region=${AWS::Region} --resource=EcsInstanceLaunchConfiguration --configsets UpdateEnvironment
-                 runas=root
-               mode: '000400'
-               owner: root
-               group: root
-           services:
-             sysvinit:
-               cfn-hup:
-                 enabled: true
-                 ensureRunning: true
-                 files:
-                 - '/etc/cfn/cfn-hup.conf'
-                 - '/etc/cfn/hooks.d/cfn-auto-reloader.conf'
-  myNewSecurityGroup1117:
+        configSets:
+          apm_monitoring:
+            - "configure_cfn"
+            - "install_tomcat_nr"
+        configure_cfn:
+          files:
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets wordpress --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=1
+              mode: '000400'
+              owner: root
+              group: root
+
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - '/etc/cfn/cfn-hup.conf'
+                  - '/etc/cfn/hooks.d/cfn-auto-reloader.conf'
+        install_tomcat_nr:
+          packages:
+            yum:
+              tomcat8: []
+              tomcat8-webapps: []
+              tomcat8-admin-webapps: []
+          sources: 
+            /usr/share/tomcat8: 's3://tomcat.newrelic.artifacts/newrelic.zip'
+            /usr/share/tomcat8: 's3://tomcat.newrelic.artifacts/tomcat8.conf'
+          services: 
+            sysvinit:
+              tomcat:
+                enabled: "true"
+                ensureRunning: "true"
+
+  myNewSecurityGroup1118:
       Type: AWS::EC2::SecurityGroup
       Properties:
-        GroupName: tokyoSecurity1117
+        GroupName: tokyoSecurity1118
         GroupDescription: Enable Appropriate ports for tomcat-http and ssh
-        VpcId: vpc-2fbc4d4a
+        VpcId: vpc-1e1df77b
 
         SecurityGroupIngress:
           - IpProtocol: tcp
