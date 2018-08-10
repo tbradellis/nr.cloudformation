@@ -7,7 +7,7 @@ Parameters:
       - apm
       - plusInfra
     ConstraintDescription: must specify apm or +Infra.
-=
+
 Resources:
   Ec2Instance:
     Type: AWS::EC2::Instance
@@ -27,10 +27,10 @@ Resources:
             #!/bin/bash
             yum update -y
             yum install -y aws-cfn-bootstrap 
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets apm_monitoring --region ${AWS::Region}
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance --configsets apm_monitoring --region ${AWS::Region}
 
             if [ "${EnvType}" = "plusInfra" ]; then
-            echo "license_key: 72b4cac51de99980b0c7a5f579f79348a23866c6" | sudo tee -a /etc/newrelic-infra.yml
+            echo "license_key: <1234>" | sudo tee -a /etc/newrelic-infra.yml
             cat /etc/os-release
             curl -o /etc/yum.repos.d/newrelic-infra.repo https://download.newrelic.com/infrastructure_agent/linux/yum/el/6/x86_64/newrelic-infra.repo
             yum -q makecache -y --disablerepo='*' --enablerepo='newrelic-infra'
@@ -49,7 +49,7 @@ Resources:
                 [cfn-auto-reloader-hook]
                 triggers=post.update
                 path=Resources.Ec2Instance.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets apm_monitoring --region ${AWS::Region}
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets apm_monitoring --region ${AWS::Region}
               mode: "000400"
               owner: root
               group: root
@@ -83,7 +83,7 @@ Resources:
             /usr/share/tomcat8/conf: 'https://s3-us-west-2.amazonaws.com/tomcat.newrelic.artifacts/tomcat8conf.zip'
           commands:
             test:
-              command: "chown -R tomcat:tomcat /usr/share/tomcat8"
+              command: "chown -R tomcat:tomcat"
           services: 
             sysvinit:
               tomcat:
