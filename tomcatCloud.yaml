@@ -1,47 +1,59 @@
-Parameters: 
-  EnvType: 
-    Description: Option to install New Relic Infrastructure.
-    Default: apm
+Parameters:
+  EnvType:
+    Description: Install options (apm_monitoring, apm_infra, infra)
+    Default: apm_monitoring
     Type: String
-    AllowedValues: 
-      - apm
-      - plusInfra
-    ConstraintDescription: must specify apm or +Infra.
+    AllowedValues:
+      - apm_monitoring
+      - apm_infra
+      - infra
+    ConstraintDescription: must specify a configset (apm_monitoring, apm_infra, or infra).
 
 Resources:
   Ec2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      ImageId: ami-0e86606d #Amazon Linux AMI in N. California 
+      ImageId: ami-0e86606d #Amazon Linux AMI in N. California
       KeyName: cloudformation
       IamInstanceProfile: 'S3EC2'
       SecurityGroupIds:
-        - !Ref myNewSecurityGroup0010
+        - !Ref myNewSecurityGroup1000
       Tags:
         - Key: Name
           Value: tomcat-linux-newrelic
+        - Key: SSM
+          Value: permission
       UserData:
         Fn::Base64:
           !Sub |
             #!/bin/bash
             yum update -y
-            yum install -y aws-cfn-bootstrap 
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance --configsets apm_monitoring --region ${AWS::Region}
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance --configsets ${EnvType} --region ${AWS::Region}
 
-            if [ "${EnvType}" = "plusInfra" ]; then
-            echo "license_key: <1234>" | sudo tee -a /etc/newrelic-infra.yml
-            cat /etc/os-release
-            curl -o /etc/yum.repos.d/newrelic-infra.repo https://download.newrelic.com/infrastructure_agent/linux/yum/el/6/x86_64/newrelic-infra.repo
-            yum -q makecache -y --disablerepo='*' --enablerepo='newrelic-infra'
-            yum install newrelic-infra -y
-            fi
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
+          apm_infra:
+            - "configure_cfn"
+            - "install_tomcat_nr"
+            - "infra0"
+            - "infra1"
+            - "infra2"
+            - "infra3"
+            - "infra4"
           apm_monitoring:
             - "configure_cfn"
             - "install_tomcat_nr"
+
+          install_nr_infra:
+            - "configure_cfn"
+            - "infra0"
+            - "infra1"
+            - "infra2"
+            - "infra3"
+            - "infra4"
         configure_cfn:
           files:
             /etc/cfn/hooks.d/cfn-auto-reloader.conf:
@@ -49,7 +61,7 @@ Resources:
                 [cfn-auto-reloader-hook]
                 triggers=post.update
                 path=Resources.Ec2Instance.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets apm_monitoring --region ${AWS::Region}
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Ec2Instance --configsets ${EnvType} --region ${AWS::Region}
               mode: "000400"
               owner: root
               group: root
@@ -78,22 +90,43 @@ Resources:
               tomcat8: []
               tomcat8-webapps: []
               tomcat8-admin-webapps: []
-          sources: 
+          sources:
             /usr/share/tomcat8: 'https://s3-us-west-2.amazonaws.com/tomcat.newrelic.artifacts/newrelic.zip'
             /usr/share/tomcat8/conf: 'https://s3-us-west-2.amazonaws.com/tomcat.newrelic.artifacts/tomcat8conf.zip'
           commands:
-            test:
-              command: "chown -R tomcat:tomcat"
-          services: 
+            user_group:
+              command: "chown -R tomcat:tomcat /usr/share/tomcat8"
+          services:
             sysvinit:
-              tomcat:
+              tomcat8:
                 enabled: "true"
                 ensureRunning: "true"
 
-  myNewSecurityGroup0010:
+        infra0:
+          commands:
+            set_yaml:
+              command: "echo 'license_key: <1234>' | sudo tee -a /etc/newrelic-infra.yml"
+        infra1:
+          commands:
+            cat_release:
+              command: "cat /etc/os-release"
+        infra2:
+          commands:
+            get_repo:
+              command: "curl -o /etc/yum.repos.d/newrelic-infra.repo https://download.newrelic.com/infrastructure_agent/linux/yum/el/6/x86_64/newrelic-infra.repo"
+        infra3:
+          commands:
+            clean_enable:
+             command: "yum -q makecache -y --disablerepo='*' --enablerepo='newrelic-infra'"
+        infra4:
+          commands:
+            install_infra:
+              command: "yum install newrelic-infra -y"
+
+  myNewSecurityGroup1000:
       Type: AWS::EC2::SecurityGroup
       Properties:
-        GroupName: tokyoSecurity0010
+        GroupName: tokyoSecurity1000
         GroupDescription: Enable Appropriate ports for tomcat-http and ssh
         VpcId: vpc-1e1df77b
 
