@@ -7,7 +7,7 @@ Parameters:
       - apm
       - plusInfra
     ConstraintDescription: must specify apm or +Infra.
-
+=
 Resources:
   Ec2Instance:
     Type: AWS::EC2::Instance
@@ -17,7 +17,7 @@ Resources:
       KeyName: cloudformation
       IamInstanceProfile: 'S3EC2'
       SecurityGroupIds:
-        - !Ref myNewSecurityGroup1118
+        - !Ref myNewSecurityGroup0010
       Tags:
         - Key: Name
           Value: tomcat-linux-newrelic
@@ -27,6 +27,8 @@ Resources:
             #!/bin/bash
             yum update -y
             yum install -y aws-cfn-bootstrap 
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets apm_monitoring --region ${AWS::Region}
+
             if [ "${EnvType}" = "plusInfra" ]; then
             echo "license_key: 72b4cac51de99980b0c7a5f579f79348a23866c6" | sudo tee -a /etc/newrelic-infra.yml
             cat /etc/os-release
@@ -77,18 +79,21 @@ Resources:
               tomcat8-webapps: []
               tomcat8-admin-webapps: []
           sources: 
-            /usr/share/tomcat8: 's3://tomcat.newrelic.artifacts/newrelic.zip'
-            /usr/share/tomcat8: 's3://tomcat.newrelic.artifacts/tomcat8.conf'
+            /usr/share/tomcat8: 'https://s3-us-west-2.amazonaws.com/tomcat.newrelic.artifacts/newrelic.zip'
+            /usr/share/tomcat8/conf: 'https://s3-us-west-2.amazonaws.com/tomcat.newrelic.artifacts/tomcat8conf.zip'
+          commands:
+            test:
+              command: "chown -R tomcat:tomcat /usr/share/tomcat8"
           services: 
             sysvinit:
               tomcat:
                 enabled: "true"
                 ensureRunning: "true"
 
-  myNewSecurityGroup1118:
+  myNewSecurityGroup0010:
       Type: AWS::EC2::SecurityGroup
       Properties:
-        GroupName: tokyoSecurity1118
+        GroupName: tokyoSecurity0010
         GroupDescription: Enable Appropriate ports for tomcat-http and ssh
         VpcId: vpc-1e1df77b
 
